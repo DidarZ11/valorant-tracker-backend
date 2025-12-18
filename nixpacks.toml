@@ -1,0 +1,5 @@
+[phases.build]
+cmds = ["mvn clean install -DskipTests"]
+
+[phases.start]
+cmd = "java -Dserver.port=$PORT -jar target/valorant-player-stats-1.0.0.jar"
