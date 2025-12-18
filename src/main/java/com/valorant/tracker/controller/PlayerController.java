@@ -1,13 +1,17 @@
 package com.valorant.tracker.controller;
 
 import com.valorant.tracker.dto.PlayerStatsDTO;
+import com.valorant.tracker.dto.MatchHistoryDTO;
+import com.valorant.tracker.dto.MatchDetailDTO;
 import com.valorant.tracker.entity.Player;
-import com.valorant.tracker.service.match.MatchService;
 import com.valorant.tracker.service.player.PlayerService;
 import com.valorant.tracker.service.stats.PlayerStatsService;
+import com.valorant.tracker.service.match.MatchHistoryService;
+import com.valorant.tracker.service.match.MatchDetailService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/players")
@@ -16,41 +20,36 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerController {
 
     private final PlayerService playerService;
-    private final MatchService matchService;
     private final PlayerStatsService statsService;
+    private final MatchHistoryService matchHistoryService;
+    private final MatchDetailService matchDetailService;
 
     @GetMapping("/{name}/{tag}")
-    public ResponseEntity<Player> getPlayer(
+    public Player getPlayer(
             @PathVariable String name,
             @PathVariable String tag,
-            @RequestParam(defaultValue = "eu") String region) {
-
-        Player player = playerService.getOrCreateWithMMR(name, tag, region);
-
-        // Автоматически загружаем матчи при первом запросе
-        try {
-            matchService.updateMatches(player.getPuuid(), region);
-        } catch (Exception e) {
-            System.err.println("⚠️ Failed to load matches: " + e.getMessage());
-        }
-
-        return ResponseEntity.ok(player);
+            @RequestParam String region) {
+        return playerService.getOrCreateWithMMR(name, tag, region);
     }
 
     @GetMapping("/{puuid}/stats")
-    public ResponseEntity<PlayerStatsDTO> getPlayerStats(
-            @PathVariable String puuid) {
-
-        PlayerStatsDTO stats = statsService.getStats(puuid);
-        return ResponseEntity.ok(stats);
+    public PlayerStatsDTO getStats(
+            @PathVariable String puuid,
+            @RequestParam(required = false, defaultValue = "all") String mode) {
+        return statsService.getStats(puuid, mode);
     }
 
-    @PostMapping("/{puuid}/update")
-    public ResponseEntity<String> updatePlayerMatches(
+    @GetMapping("/{puuid}/matches")
+    public List<MatchHistoryDTO> getMatchHistory(
             @PathVariable String puuid,
-            @RequestParam(defaultValue = "eu") String region) {
+            @RequestParam(required = false, defaultValue = "all") String mode,
+            @RequestParam(required = false, defaultValue = "10") int limit) {
+        return matchHistoryService.getMatchHistory(puuid, mode, limit);
+    }
 
-        matchService.updateMatches(puuid, region);
-        return ResponseEntity.ok("Matches updated successfully");
+    // НОВЫЙ ENDPOINT
+    @GetMapping("/matches/{matchId}")
+    public MatchDetailDTO getMatchDetail(@PathVariable String matchId) {
+        return matchDetailService.getMatchDetail(matchId);
     }
 }

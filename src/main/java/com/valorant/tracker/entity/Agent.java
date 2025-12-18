@@ -1,7 +1,9 @@
 package com.valorant.tracker.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "agents")
@@ -12,11 +14,16 @@ public class Agent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "agent_id")
     private Long agentId;
 
-    @Column(length = 24, nullable = false, unique = true)
-    private String name;
+    @Column(name = "agent_name", unique = true, nullable = false)
+    private String agentName;
 
-    @Column(length = 24, nullable = false)
+    @Column(name = "display_icon_url")
+    private String displayIconUrl;
+
+    @Column(name = "role")
     private String role;
+  
 }

@@ -1,7 +1,6 @@
 package com.valorant.tracker.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.valorant.tracker.service.api.ValorantApiService;
+import com.valorant.tracker.service.match.MatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,15 +10,15 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class TrackerTestController {
 
-    private final ValorantApiService apiService;
+    private final MatchService matchService;
 
-    // Убрали {region} из пути, добавили как query параметр
-    @GetMapping("/account/{name}/{tag}")
-    public JsonNode account(
-            @PathVariable String name,
-            @PathVariable String tag,
-            @RequestParam(defaultValue = "eu") String region) {  // ← query параметр вместо path
-
-        return apiService.fetchAccount(name, tag, region);
+    /**
+     * Загрузить матчи для игрока
+     * GET /api/v1/tracker/matches/{region}/{puuid}
+     */
+    @GetMapping("/matches/{region}/{puuid}")
+    public String loadMatches(@PathVariable String region, @PathVariable String puuid) {
+        matchService.updateMatches(puuid, region);
+        return "Matches loaded!";
     }
 }

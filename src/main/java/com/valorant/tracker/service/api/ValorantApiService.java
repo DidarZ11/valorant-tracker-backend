@@ -19,7 +19,7 @@ public class ValorantApiService {
     @Value("${valorant.api.key}")
     private String apiKey;
 
-    public JsonNode fetchAccount(String name, String tag, String region) {
+    public JsonNode fetchAccount(String name, String tag) {
         try {
             String url = String.format("%s/account/%s/%s?api_key=%s",
                     apiBaseUrl, name.trim(), tag.trim(), apiKey);
@@ -30,8 +30,6 @@ public class ValorantApiService {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response);
 
-            System.out.println("📥 Account response status: " + root.get("status").asInt());
-
             if (root.has("status") && root.get("status").asInt() == 200) {
                 return root.get("data");
             }
@@ -39,26 +37,20 @@ public class ValorantApiService {
             System.err.println("❌ API Error: " + root);
             throw new RuntimeException("Player not found: " + name + "#" + tag);
 
-        } catch (HttpClientErrorException e) {
-            System.err.println("❌ HTTP Error " + e.getStatusCode() + ": " + e.getResponseBodyAsString());
-            throw new RuntimeException("API Error: " + e.getMessage(), e);
         } catch (Exception e) {
             System.err.println("❌ Failed to fetch account: " + e.getMessage());
             throw new RuntimeException("Failed to fetch account: " + name + "#" + tag, e);
         }
     }
 
-    public JsonNode fetchMatches(String puuid, String region) {
+    public JsonNode fetchMatchList(String region, String puuid) {
         try {
-            String url = String.format(
-                    "%s/matches/%s/%s?api_key=%s",
-                    apiBaseUrl, region, puuid, apiKey
-            );
+            String url = String.format("https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/%s/%s?size=20&api_key=%s",
+                    region, puuid, apiKey);
 
-            System.out.println("📡 Fetching matches: " + url);
+            System.out.println("📡 Fetching match list: " + url);
 
             String response = restTemplate.getForObject(url, String.class);
-
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response);
 
@@ -66,44 +58,108 @@ public class ValorantApiService {
                 return root.get("data");
             }
 
-            System.err.println("⚠️ Matches API error: " + root);
-            return null;
-
-        } catch (HttpClientErrorException.NotFound e) {
-            System.out.println("ℹ️ No matches found (404)");
-            return null;
-
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            System.err.println("⚠️ Rate limit exceeded");
+            System.err.println("⚠️ Match list API error: " + root);
             return null;
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch matches", e);
+            System.err.println("❌ Failed to fetch match list: " + e.getMessage());
+            return null;
         }
     }
 
-    public JsonNode fetchMMRHistory(String puuid, String region) {
+    public JsonNode fetchMatchDetails(String region, String matchId) {
         try {
-            String url = String.format("%s/by-puuid/mmr-history/%s/%s?api_key=%s",
-                    apiBaseUrl, region, puuid, apiKey);
+            String url = String.format("%s/../v1/match/%s/%s?api_key=%s",
+                    apiBaseUrl, region, matchId, apiKey);
 
-            System.out.println("📡 Fetching MMR history: " + url);
+            url = url.replace("/v1/../v1", "/v1");
+
+            System.out.println("📡 Fetching match details: " + matchId);
 
             String response = restTemplate.getForObject(url, String.class);
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response);
 
-            System.out.println("📥 MMR response status: " + root.get("status").asInt());
+            if (root.has("status") && root.get("status").asInt() == 200) {
+                return root.get("data");
+            }
+
+            System.err.println("⚠️ Match details API error: " + root);
+            return null;
+
+        } catch (HttpClientErrorException.NotFound e) {
+            System.out.println("⚠️ Match not found: " + matchId);
+            return null;
+        } catch (Exception e) {
+            System.err.println("❌ Failed to fetch match details: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JsonNode fetchMMR(String region, String puuid) {
+        try {
+            String url = String.format("%s/by-puuid/mmr/%s/%s?api_key=%s",
+                    apiBaseUrl, region, puuid, apiKey);
+
+            System.out.println("📡 Fetching MMR: " + url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response);
 
             if (root.has("status") && root.get("status").asInt() == 200) {
                 return root.get("data");
             }
 
-            System.err.println("⚠️ MMR API Error: " + root);
+            return null;
+        } catch (Exception e) {
+            System.err.println("❌ Failed to fetch MMR: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JsonNode fetchAgentData() {
+        try {
+            String url = "https://valorant-api.com/v1/agents";
+
+            System.out.println("📡 Fetching agents: " + url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response);
+
+            if (root.has("status") && root.get("status").asInt() == 200) {
+                return root.get("data");
+            }
+
+            System.err.println("❌ Failed to fetch agents. Status: " + root.get("status"));
             return null;
 
         } catch (Exception e) {
-            System.err.println("❌ Failed to fetch MMR: " + e.getMessage());
+            System.err.println("❌ Error fetching agents: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JsonNode fetchMapsData() {
+        try {
+            String url = "https://valorant-api.com/v1/maps";
+
+            System.out.println("📡 Fetching maps: " + url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response);
+
+            if (root.has("status") && root.get("status").asInt() == 200) {
+                return root.get("data");
+            }
+
+            System.err.println("❌ Failed to fetch maps. Status: " + root.get("status"));
+            return null;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error fetching maps: " + e.getMessage());
             return null;
         }
     }

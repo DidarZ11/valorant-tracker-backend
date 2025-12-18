@@ -2,11 +2,11 @@ package com.valorant.tracker.service.player;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.valorant.tracker.entity.Player;
-import com.valorant.tracker.entity.CompetitiveHistory;
 import com.valorant.tracker.repository.PlayerRepository;
-import com.valorant.tracker.repository.CompetitiveHistoryRepository;
 import com.valorant.tracker.service.api.ValorantApiService;
+import com.valorant.tracker.service.match.MatchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,8 +17,11 @@ import java.time.OffsetDateTime;
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
-    private final CompetitiveHistoryRepository competitiveHistoryRepository;
     private final ValorantApiService apiService;
+
+    // ДОБАВИЛИ @Lazy - это загрузит MatchService только когда понадобится
+    @Lazy
+    private final MatchService matchService;
 
     @Transactional
     public Player getOrCreate(String name, String tag, String region) {
@@ -33,6 +36,9 @@ public class PlayerService {
         // Обновляем MMR данные
         updateMMR(player.getPuuid(), region);
 
+        // Загружаем матчи
+        matchService.updateMatches(player.getPuuid(), region);
+
         // Перезагружаем игрока с обновленными данными
         return playerRepository.findById(player.getPuuid()).orElse(player);
     }
@@ -40,7 +46,7 @@ public class PlayerService {
     private Player createFromApi(String name, String tag, String region) {
         System.out.println("🔍 Player not in DB, fetching from API: " + name + "#" + tag);
 
-        JsonNode accountData = apiService.fetchAccount(name, tag, region);
+        JsonNode accountData = apiService.fetchAccount(name, tag);
 
         Player player = new Player();
         player.setPuuid(accountData.get("puuid").asText());
@@ -61,28 +67,15 @@ public class PlayerService {
 
     private void updateMMR(String puuid, String region) {
         try {
-            JsonNode mmrData = apiService.fetchMMRHistory(puuid, region);
+            JsonNode mmrData = apiService.fetchMMR(region, puuid);
 
-            if (mmrData != null && mmrData.isArray() && mmrData.size() > 0) {
-                JsonNode latest = mmrData.get(0);
-
-                // Обновляем игрока
+            if (mmrData != null) {
                 playerRepository.findById(puuid).ifPresent(player -> {
-                    player.setCurrentTier(latest.get("currenttier").asInt());
-                    player.setCurrentRr(latest.get("ranking_in_tier").asInt());
+                    player.setCurrentTier(mmrData.get("currenttier").asInt());
+                    player.setCurrentRr(mmrData.get("ranking_in_tier").asInt());
                     player.setLastUpdated(OffsetDateTime.now());
                     playerRepository.save(player);
                 });
-
-                // Сохраняем историю
-                CompetitiveHistory history = new CompetitiveHistory();
-                history.setMatchId(latest.get("match_id").asText());
-                history.setPuuid(puuid);
-                history.setTierAfter(latest.get("currenttier").asInt());
-                history.setRrAfter(latest.get("ranking_in_tier").asInt());
-                history.setMatchStartTime(OffsetDateTime.now());
-
-                competitiveHistoryRepository.save(history);
 
                 System.out.println("✅ MMR updated for player: " + puuid);
             }
